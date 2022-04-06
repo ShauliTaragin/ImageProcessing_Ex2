@@ -10,8 +10,30 @@ def conv1D(in_signal: np.ndarray, k_size: np.ndarray) -> np.ndarray:
     :param k_size: 1-D array as a kernel
     :return: The convolved array
     """
+    # Working by convention i shall first flip the kernel
+    ker_fliped = np.zeros_like(k_size)
+    for i in range(len(k_size)):
+        ker_fliped[-1 - i] = k_size[i]
 
-    return
+    # pad the kernels with zeros
+    side_padding_len = len(in_signal) - 1
+    padded_ker = np.zeros(len(ker_fliped) + 2 * side_padding_len)
+    rng=len(padded_ker) - side_padding_len
+    k=0
+    for i in range(side_padding_len,rng):
+        padded_ker[i] = ker_fliped[k]
+        k+=1
+
+    # create vec to return
+    vec_2_return = np.zeros(len(in_signal) + len(ker_fliped) - 1)
+
+    # multiply the values
+    k = 0
+    for i in range(len(vec_2_return)):
+        for j in range(len(in_signal)):
+            vec_2_return[i] += in_signal[-1 - j] * padded_ker[-1 - k - j]
+        k += 1
+    return vec_2_return
 
 
 def conv2D(in_image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
