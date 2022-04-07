@@ -31,7 +31,7 @@ def edgeDemo():
     img = cv2.resize(img, (0, 0), fx=.25, fy=.25)
 
     ocv = my = edgeDetectionZeroCrossingSimple(img)
-    ocv = my = edgeDetectionZeroCrossingLOG(img)
+    # ocv = my = edgeDetectionZeroCrossingLOG(img)
 
     f, ax = plt.subplots(1, 3)
     ax[0].set_title("OPENCV")
@@ -138,13 +138,13 @@ def biliteralFilterDemo():
 
 
 def main():
-    conv1Demo()
-    conv2Demo()
-    derivDemo()
-    blurDemo()
-    edgeDemo()
+    # conv1Demo()
+    # conv2Demo()
+    # derivDemo()
+    # blurDemo()
+    # edgeDemo()
     houghDemo()
-    biliteralFilterDemo()
+    # biliteralFilterDemo()
 
 
 if __name__ == '__main__':

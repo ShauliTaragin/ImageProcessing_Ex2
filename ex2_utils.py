@@ -2,6 +2,8 @@ import math
 import numpy as np
 import cv2
 
+eps = 0.004
+
 
 def conv1D(in_signal: np.ndarray, k_size: np.ndarray) -> np.ndarray:
     """
@@ -18,11 +20,11 @@ def conv1D(in_signal: np.ndarray, k_size: np.ndarray) -> np.ndarray:
     # pad the kernels with zeros
     side_padding_len = len(in_signal) - 1
     padded_ker = np.zeros(len(ker_fliped) + 2 * side_padding_len)
-    rng=len(padded_ker) - side_padding_len
-    k=0
-    for i in range(side_padding_len,rng):
+    rng = len(padded_ker) - side_padding_len
+    k = 0
+    for i in range(side_padding_len, rng):
         padded_ker[i] = ker_fliped[k]
-        k+=1
+        k += 1
 
     # create vec to return
     vec_2_return = np.zeros(len(in_signal) + len(ker_fliped) - 1)
@@ -43,8 +45,20 @@ def conv2D(in_image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     :param kernel: A kernel
     :return: The convolved image
     """
-
-    return
+    # Working by convention i shall first flip the kernel
+    ker_flipped = np.flip(kernel)
+    # pad the picture
+    padding_len = [int(ker_flipped.shape[0] / 2), int(ker_flipped.shape[1] / 2)]
+    padded_signal = cv2.copyMakeBorder(in_image, padding_len[0], padding_len[0], padding_len[1], padding_len[1],
+                                       cv2.BORDER_REPLICATE, None, value=0)
+    # create img to return
+    pic_to_return = np.zeros_like(in_image)
+    # multiply the values
+    for i in range(pic_to_return.shape[0]):
+        for j in range(pic_to_return.shape[1]):
+            pic_to_return[i, j] = (padded_signal[i:i + ker_flipped.shape[0],
+                                   j:j + ker_flipped.shape[1]] * ker_flipped).sum().round()
+    return pic_to_return
 
 
 def convDerivative(in_image: np.ndarray) -> (np.ndarray, np.ndarray):
@@ -53,8 +67,12 @@ def convDerivative(in_image: np.ndarray) -> (np.ndarray, np.ndarray):
     :param in_image: Grayscale iamge
     :return: (directions, magnitude)
     """
-
-    return
+    vector = np.array([[1, 0, -1]])
+    G_X = cv2.filter2D(in_image, -1, vector)
+    G_Y = cv2.filter2D(in_image, -1, vector.T)
+    magnitude = np.sqrt(G_X ** 2 + G_Y ** 2).astype(np.float64)
+    direction = np.arctan2(G_Y, G_X).astype(np.float64)
+    return direction, magnitude
 
 
 def blurImage1(in_image: np.ndarray, k_size: int) -> np.ndarray:
@@ -79,14 +97,51 @@ def blurImage2(in_image: np.ndarray, k_size: int) -> np.ndarray:
     return
 
 
+
+def create_neighbor_array(laplacian_pic: np.ndarray, r: int, c: int) -> (np.ndarray, np.ndarray):
+    up = np.array([laplacian_pic[r, c - 1], laplacian_pic[r - 1, c - 1],
+                   laplacian_pic[r - 1, c], laplacian_pic[r - 1, c + 1]])
+    down = np.array([laplacian_pic[r, c + 1], laplacian_pic[r + 1, c + 1], laplacian_pic[r + 1, c],
+                     laplacian_pic[r + 1, c - 1]])
+    return up, down
+
+
 def edgeDetectionZeroCrossingSimple(img: np.ndarray) -> np.ndarray:
     """
-    Detecting edges using "ZeroCrossing" method
+    Detecting edges using the "ZeroCrossing" method
     :param img: Input image
-    :return: opencv solution, my implementation
+    :return: Edge matrix
     """
-
-    return
+    # create laplacian array
+    laplacian = np.array([[0, 1, 0], [1, -4, 1], [0, 1, 0]])
+    laplacian_pic = cv2.filter2D(img, -1, laplacian, borderType=cv2.BORDER_REPLICATE)
+    laplacian_pic[np.abs(laplacian_pic) < eps] = 0
+    # the edge image which we return
+    edg_img = np.zeros(img.shape)
+    # iterating all pixels in image and determining the edges
+    for i in range(img.shape[0] - (laplacian.shape[0] - 1)):
+        for j in range(img.shape[1] - (laplacian.shape[1] - 1)):
+            # now we have 3 cases , if pixel is zero then we check all his neighbours
+            # else if its positive , and last case for negative
+            if laplacian_pic[i][j] == 0:
+                # check all neighbours and determine whether that pixel is an edge
+                if (laplacian_pic[i - 1][j] < 0 and laplacian_pic[i + 1][j] > 0) or (
+                        laplacian_pic[i - 1][j] > 0 and laplacian_pic[i + 1][j] < 0):
+                    edg_img[i][j] = 1
+                elif (laplacian_pic[i][j - 1] < 0 and laplacian_pic[i][j + 1] > 0) or (
+                        laplacian_pic[i][j - 1] < 0 and laplacian_pic[i][j + 1] < 0):
+                    edg_img[i][j] = 1
+                else:
+                    continue
+            elif laplacian_pic[i][j] > 0:
+                up, down = create_neighbor_array(laplacian_pic, i, j)
+                if ((up < 0).sum() + (down < 0).sum()) > 0:
+                    edg_img[i][j] = 1
+            else:
+                if (laplacian_pic[i][j - 1] > 0) or (laplacian_pic[i][j + 1] > 0) or (laplacian_pic[i - 1][j] > 0) or (
+                        laplacian_pic[i + 1][j] > 0):
+                    edg_img[i][j] = 1
+    return edg_img
 
 
 def edgeDetectionZeroCrossingLOG(img: np.ndarray) -> np.ndarray:
