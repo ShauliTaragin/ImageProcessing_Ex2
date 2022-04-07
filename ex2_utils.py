@@ -97,7 +97,6 @@ def blurImage2(in_image: np.ndarray, k_size: int) -> np.ndarray:
     return
 
 
-
 def create_neighbor_array(laplacian_pic: np.ndarray, r: int, c: int) -> (np.ndarray, np.ndarray):
     up = np.array([laplacian_pic[r, c - 1], laplacian_pic[r - 1, c - 1],
                    laplacian_pic[r - 1, c], laplacian_pic[r - 1, c + 1]])
@@ -177,5 +176,23 @@ def bilateral_filter_implement(in_image: np.ndarray, k_size: int, sigma_color: f
     :param sigma_space: represents the filter sigma in the coordinate.
     :return: OpenCV implementation, my implementation
     """
+    ans = cv2.bilateralFilter(in_image, k_size, sigma_color, sigma_space)
+    imgbi = np.zeros_like(in_image)
 
-    return
+    # img = cv2.imread('.jpg', cv2.IMREAD_GRAYSCALE) / 255.0
+    for y in range(k_size, in_image.shape[0] - k_size):
+        for x in range(k_size, in_image.shape[1] - k_size):
+            pivot_v = in_image[y, x]
+            neighbor_hood = in_image[
+                            y - k_size:y + k_size + 1,
+                            x - k_size:x + k_size + 1
+                            ]
+            sigma = sigma_color
+            diff = abs(neighbor_hood.astype(int) - pivot_v)
+            diff_gau = np.exp(-(diff) / (2 * sigma))
+            gaus = cv2.getGaussianKernel(2 * k_size + 1, k_size)
+            gaus = gaus.dot(gaus.T)
+            combo = gaus * diff_gau
+            result = (combo * neighbor_hood / combo.sum()).mean()
+            imgbi[y, x] = result * 255
+    return ans, imgbi
