@@ -82,8 +82,18 @@ def blurImage1(in_image: np.ndarray, k_size: int) -> np.ndarray:
     :param k_size: Kernel size
     :return: The Blurred image
     """
-
-    return
+    # sigma from the Gaussian blurring formula
+    sigma = 0.3 * ((k_size - 1) * 0.5 - 1) + 0.8
+    # create the kernel to work on. 2d array of size k_size*k_size
+    kernel = np.empty(shape=(k_size, k_size))
+    kernel.fill(0)
+    # sqrt variable to make code neat
+    sqrt_k_size = np.sqrt(k_size)
+    for i in range(0, k_size):
+        for j in range(0, k_size):
+            x_plus_y_sqrd = ((i - sqrt_k_size) ** 2 + (j - sqrt_k_size) ** 2)
+            kernel[i][j] = np.exp(-x_plus_y_sqrd / (2 * sigma ** 2)) / (2 * np.pi * sigma ** 2)
+    return conv2D(in_image, kernel)
 
 
 def blurImage2(in_image: np.ndarray, k_size: int) -> np.ndarray:
@@ -94,7 +104,8 @@ def blurImage2(in_image: np.ndarray, k_size: int) -> np.ndarray:
     :return: The Blurred image
     """
 
-    return
+    kernel = cv2.getGaussianKernel(k_size, 0)
+    return cv2.filter2D(in_image, -1, kernel, borderType=cv2.BORDER_REPLICATE)
 
 
 def create_neighbor_array(laplacian_pic: np.ndarray, r: int, c: int) -> (np.ndarray, np.ndarray):
@@ -150,7 +161,8 @@ def edgeDetectionZeroCrossingLOG(img: np.ndarray) -> np.ndarray:
     :return: opencv solution, my implementation
     """
 
-    return
+    img_gaus = cv2.GaussianBlur(img, (5, 5), 0)
+    return edgeDetectionZeroCrossingSimple(img_gaus)
 
 
 def houghCircle(img: np.ndarray, min_radius: int, max_radius: int) -> list:
@@ -176,23 +188,4 @@ def bilateral_filter_implement(in_image: np.ndarray, k_size: int, sigma_color: f
     :param sigma_space: represents the filter sigma in the coordinate.
     :return: OpenCV implementation, my implementation
     """
-    ans = cv2.bilateralFilter(in_image, k_size, sigma_color, sigma_space)
-    imgbi = np.zeros_like(in_image)
 
-    # img = cv2.imread('.jpg', cv2.IMREAD_GRAYSCALE) / 255.0
-    for y in range(k_size, in_image.shape[0] - k_size):
-        for x in range(k_size, in_image.shape[1] - k_size):
-            pivot_v = in_image[y, x]
-            neighbor_hood = in_image[
-                            y - k_size:y + k_size + 1,
-                            x - k_size:x + k_size + 1
-                            ]
-            sigma = sigma_color
-            diff = abs(neighbor_hood.astype(int) - pivot_v)
-            diff_gau = np.exp(-(diff) / (2 * sigma))
-            gaus = cv2.getGaussianKernel(2 * k_size + 1, k_size)
-            gaus = gaus.dot(gaus.T)
-            combo = gaus * diff_gau
-            result = (combo * neighbor_hood / combo.sum()).mean()
-            imgbi[y, x] = result * 255
-    return ans, imgbi
