@@ -5,6 +5,10 @@ import cv2
 eps = 0.004
 
 
+def myid() -> int:
+    return 209337161
+
+
 def conv1D(in_signal: np.ndarray, k_size: np.ndarray) -> np.ndarray:
     """
     Convolve a 1-D array with a given kernel
@@ -175,8 +179,54 @@ def houghCircle(img: np.ndarray, min_radius: int, max_radius: int) -> list:
     :return: A list containing the detected circles,
                 [(x,y,radius),(x,y,radius),...]
     """
+    threshold = 90
+    found_circles = []
+    edgeimg = cv2.Canny((img * 255).astype(np.uint8), img.shape[0], img.shape[1])
+    # main loop checking each second radius
+    for r in range(min_radius, max_radius, 2):
+        print("radius: {}".format(r))
+        # for each pixel check if according to formula it fits the angel
+        each_pixel_edge = search_each_pixel(img, edgeimg, threshold, r)
+        # only if maximum from the pixel edge picture we got passes the threshold
+        # we created then do we check for a ring
+        if np.amax(each_pixel_edge) > threshold:
+            for i in range(1, int(img.shape[0] / 2) - 1):
+                origin_i = i * 2
+                # looping only have of the original image to save running time
+                for j in range(1, int(img.shape[1] / 2) - 1):
+                    origin_j = j * 2
+                    # we divided the picture by 2 in the loop therefore we also need to times back by 2 to reach each
+                    # pixel
+                    if each_pixel_edge[origin_i][origin_j] >= threshold:
+                        flag = condition(found_circles, i, j)
+                        sum_dev = each_pixel_edge[-1 + origin_i:2 + origin_i, origin_j - 1: origin_j + 2].sum() / 9
+                        if flag and sum_dev >= threshold / 9:
+                                # set radius to zero
+                                each_pixel_edge[origin_i - r:origin_i + r, origin_j - r: origin_j + r] = 0
+                                found_circles.append((origin_j, origin_i, r))
+                                print("found")
 
-    return
+    return found_circles
+
+
+def search_each_pixel(img: np.ndarray, edgeimg: np.ndarray, thresh, radius) -> np.ndarray:
+    to_return = np.zeros(edgeimg.shape)
+    for x in range(0, int(img.shape[0] / 2)):
+        for y in range(int(img.shape[1] / 2)):
+            if edgeimg[2 * x][2 * y] == 255:
+                for angel in range(180):
+                    angle_1 = int(y * 2 - np.cos(angel * np.pi / thresh) * radius)
+                    angle_2 = int(x * 2 - np.sin(angel * np.pi / thresh) * radius)
+                    if 0 <= angle_1 < img.shape[1] and 0 <= angle_2 < img.shape[0]:
+                        to_return[angle_2][angle_1] += 4
+    return to_return
+
+
+def condition(fcircles: list, iterator1, iterator2) -> bool:
+    for first, second, third in fcircles:
+        if np.square(iterator2 * 2 - first) + np.square(iterator1 * 2 - second) <= np.square(third):
+            return False
+    return True
 
 
 def bilateral_filter_implement(in_image: np.ndarray, k_size: int, sigma_color: float, sigma_space: float) -> (
@@ -188,4 +238,29 @@ def bilateral_filter_implement(in_image: np.ndarray, k_size: int, sigma_color: f
     :param sigma_space: represents the filter sigma in the coordinate.
     :return: OpenCV implementation, my implementation
     """
-
+    imgbi = np.zeros_like(in_image)
+    ans = cv2.bilateralFilter(in_image, k_size, sigma_color, sigma_space)
+    # the size will be divided by 2 since kernel is squared
+    k_size = int(k_size / 2)
+    # make padding for image according to our kernel size (same as conv2d)
+    in_image = cv2.copyMakeBorder(in_image, k_size, k_size, k_size, k_size,
+                                  cv2.BORDER_REPLICATE, None, value=0)
+    for y in range(k_size, in_image.shape[0] - k_size):
+        for x in range(k_size, in_image.shape[1] - k_size):
+            # next few lines is the official formula given in class
+            pivot_v = in_image[y, x]
+            neighbor_hood = in_image[
+                            y - k_size:y + k_size + 1,
+                            x - k_size:x + k_size + 1
+                            ]
+            sigma = sigma_color
+            diff = neighbor_hood.astype(int) - pivot_v
+            diff_gau = np.exp(-np.power(diff, 2) / (2 * sigma))
+            gaus = cv2.getGaussianKernel(2 * k_size + 1, sigma=sigma_space)
+            gaus = gaus.dot(gaus.T)
+            combo = gaus * diff_gau
+            # we shall sum all the neighbours after calculations to receive our results
+            result = ((combo * neighbor_hood / combo.sum()).sum())
+            # round up what we got
+            imgbi[y - k_size, x - k_size] = round(result)
+    return ans, imgbi
