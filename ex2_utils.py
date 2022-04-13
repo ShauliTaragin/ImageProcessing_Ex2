@@ -184,7 +184,7 @@ def houghCircle(img: np.ndarray, min_radius: int, max_radius: int) -> list:
     edgeimg = cv2.Canny((img * 255).astype(np.uint8), img.shape[0], img.shape[1])
     # main loop checking each second radius
     for r in range(min_radius, max_radius, 2):
-        print("radius: {}".format(r))
+        print("current radius to check: {}".format(r))
         # for each pixel check if according to formula it fits the angel
         each_pixel_edge = search_each_pixel(img, edgeimg, threshold, r)
         # only if maximum from the pixel edge picture we got passes the threshold
@@ -204,7 +204,6 @@ def houghCircle(img: np.ndarray, min_radius: int, max_radius: int) -> list:
                                 # set radius to zero
                                 each_pixel_edge[origin_i - r:origin_i + r, origin_j - r: origin_j + r] = 0
                                 found_circles.append((origin_j, origin_i, r))
-                                print("found")
 
     return found_circles
 
